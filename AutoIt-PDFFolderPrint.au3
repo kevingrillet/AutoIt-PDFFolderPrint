@@ -53,6 +53,7 @@ Opt("TrayIconHide", 0) ;0=show, 1=hide tray icon
 #EndRegion ### OPT ###
 
 #Region ### VARIABLES ###
+Local $bChange = False
 Local $bRunning = False
 Local $sPathIni = @ScriptDir & "\AutoIt-PDFFolderPrint.ini"
 Local $sPathLog = @ScriptDir & "\AutoIt-PDFFolderPrint.log"
@@ -94,13 +95,13 @@ $tvFolder = GUICtrlCreateTreeView(24, 288, 561, 185)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
 $sbMain = _GUICtrlStatusBar_Create($fAutoItPDFFolderPrint)
 _GUICtrlStatusBar_SetSimple($sbMain)
-_GUICtrlStatusBar_SetText($sbMain, "Waiting")
-$tbMain= _GUICtrlToolbar_Create($fAutoItPDFFolderPrint, 0)
+_GUICtrlStatusBar_SetText($sbMain, "")
+$tbMain = _GUICtrlToolbar_Create($fAutoItPDFFolderPrint, 0)
 _GUICtrlToolbar_SetImageList($tbMain, $ilToolBar)
-_GUICtrlToolbar_AddButton($tbMain, $idSave, 0, 0)
-_GUICtrlToolbar_AddButton($tbMain, $idLog, 1, 0)
-_GUICtrlToolbar_AddButton($tbMain, $idStart, 2, 0)
-_GUICtrlToolbar_AddButton($tbMain, $idStop, 3, 0)
+_GUICtrlToolbar_AddButton($tbMain, $idSave, 0, 0) ; __SaveIni()
+_GUICtrlToolbar_AddButton($tbMain, $idLog, 1, 0) ; GUISetState(@SW_SHOW, $fLogs)
+_GUICtrlToolbar_AddButton($tbMain, $idStart, 2, 0) ; Set $bRunning = true
+_GUICtrlToolbar_AddButton($tbMain, $idStop, 3, 0) ; Set $bRunning = false
 $gLog = GUICtrlCreateGroup("Log", 8, 32, 593, 57)
 $cbLog = GUICtrlCreateCheckbox("Save log", 24, 56, 561, 17)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
@@ -114,15 +115,16 @@ $eLogs = GUICtrlCreateEdit("", 8, 8, 593, 385)
 ;~ GUISetState(@SW_SHOW)
 #EndRegion ### END Koda GUI section ###
 
-
 __LoadIni()
 While 1
 	If $bRunning Then
 		$aFiles = FileFindFirstFile(GUICtrlRead($iFolder) & "\*.pdf")
+		_GUICtrlStatusBar_SetText($sbMain, "Running: " & GUICtrlRead($iFolder))
 		If $aFiles <> -1 Then
-			While 1
+			While $bRunning
 				$sPdf = FileFindNextFile($aFiles)
 				If @error Then ExitLoop
+				_GUICtrlStatusBar_SetText($sbMain, "Running: " & GUICtrlRead($iFolder) & "\" & $sPdf)
 				RunWait(GUICtrlRead($iPath) & ' ' & GUICtrlRead($iArguments) & ' "' & GUICtrlRead($iFolder) & "\" & $sPdf & '"')
 				FileDelete(GUICtrlRead($iFolder) & "\" & $sPdf)
 			WEnd
@@ -139,6 +141,7 @@ Func __GetExtension($sFilePath)
 	Return $sExtension
 EndFunc   ;==>__GetExtension
 Func __LoadIni()
+	__Log("__LoadIni()")
 	GUICtrlSetState($cbLog, IniRead($sPathIni, "SETTINGS", "DIRECTORY", $GUI_UNCHECKED))
 	GUICtrlSetData($iFolder, IniRead($sPathIni, "PDF_FOLDER", "Directory", @ScriptDir))
 	GUICtrlSetData($cPredefined, IniRead($sPathIni, "SOFTWARE", "Predefined", "Custom"))
@@ -153,9 +156,12 @@ Func __Log($sToLog)
 	EndIf
 EndFunc   ;==>__Log
 Func __OnChange()
+	__Log("__OnChange()")
+	$bChange = True
+;~ 	TODO: Enable $idSave & if $iFolder -> Tree
 EndFunc   ;==>__OnChange
 Func __OnClick()
-	__Log("__OnClick(" & @GUI_CtrlId & ")")
+;~ 	__Log("__OnClick(" & @GUI_CtrlId & ")")
 	Switch @GUI_CtrlId
 		Case $bPath
 			__Log("__OnClick($bPath)")
@@ -200,14 +206,17 @@ Func __OnDrop()
 	EndIf
 EndFunc   ;==>__OnDrop
 Func __SaveIni()
+	__Log("__SaveIni()")
 	IniWrite($sPathIni, "SETTINGS", "Log", GUICtrlRead($cbLog))
 	IniWrite($sPathIni, "PDF_FOLDER", "Directory", GUICtrlRead($iFolder))
 	IniWrite($sPathIni, "SOFTWARE", "Predefined", GUICtrlRead($cPredefined))
 	IniWrite($sPathIni, "SOFTWARE", "Path", GUICtrlRead($iPath))
 	IniWrite($sPathIni, "SOFTWARE", "Arguments", GUICtrlRead($iArguments))
+	$bChange = False
 EndFunc   ;==>__SaveIni
 
 Func cPredefinedChange()
+	__Log("cPredefinedChange() [" & GUICtrlRead($cPredefined) & "]")
 	Switch GUICtrlRead($cPredefined)
 		Case "Custom"
 			GUICtrlSetData($iPath, "")
@@ -218,8 +227,15 @@ Func cPredefinedChange()
 	EndSwitch
 EndFunc   ;==>cPredefinedChange
 Func fAutoItPDFFolderPrintClose()
+	__Log("fAutoItPDFFolderPrintClose()")
+	If $bChange Then
+		If MsgBox($MB_YESNO, "Save", "Save changes?") = $IDYES Then
+			__SaveIni()
+		EndIf
+	EndIf
 	Exit 1
 EndFunc   ;==>fAutoItPDFFolderPrintClose
 Func fLogsClose()
+	__Log("fLogsClose()")
 	GUISetState(@SW_HIDE, $fLogs)
 EndFunc   ;==>fLogsClose
