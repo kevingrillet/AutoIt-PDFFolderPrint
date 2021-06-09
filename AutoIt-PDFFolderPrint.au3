@@ -74,7 +74,7 @@ _GUIImageList_AddIcon($ilToolBar, "icons\stop.ico", 0, True)
 $gSoftware = GUICtrlCreateGroup("Software", 8, 96, 593, 129)
 GUICtrlCreateLabel("Predefined", 32, 123, 55, 17)
 $cPredefined = GUICtrlCreateCombo("", 120, 120, 377, 25, BitOR($CBS_DROPDOWN, $CBS_AUTOHSCROLL))
-GUICtrlSetData(-1, "Custom|Foxit")
+GUICtrlSetData(-1, "Custom|Foxit Reader|Sumatra PDF")
 GUICtrlSetOnEvent(-1, "cPredefinedChange")
 GUICtrlCreateLabel("Path", 32, 155, 26, 17)
 $iPath = GUICtrlCreateInput("", 120, 152, 377, 21)
@@ -303,9 +303,12 @@ Func cPredefinedChange()
 		Case "Custom"
 			GUICtrlSetData($iPath, "")
 			GUICtrlSetData($iArguments, "")
-		Case "Foxit"
+		Case "Foxit Reader"
 			GUICtrlSetData($iPath, @ProgramFilesDir & "\Foxit software\Foxit Reader\Foxit Reader.exe")
 			GUICtrlSetData($iArguments, "/p")
+		Case "Sumatra PDF"
+			GUICtrlSetData($iPath, _PathFull("Foxit Reader\SumatraPDF.exe", @AppDataDir)
+			GUICtrlSetData($iArguments, "-print-to-default -exit-when-done")
 	EndSwitch
 	__OnChange()
 EndFunc   ;==>cPredefinedChange
