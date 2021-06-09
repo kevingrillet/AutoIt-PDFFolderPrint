@@ -39,6 +39,7 @@
 #include <GuiImageList.au3>
 #include <GuiStatusBar.au3>
 #include <GuiToolbar.au3>
+#include <GuiToolTip.au3>
 #include <ImageListConstants.au3>
 #include <StaticConstants.au3>
 #include <ToolbarConstants.au3>
@@ -59,7 +60,7 @@ Local $sPathIni = @ScriptDir & "\AutoIt-PDFFolderPrint.ini"
 Local $sPathLog = @ScriptDir & "\AutoIt-PDFFolderPrint.log"
 Local $aFiles, $sPathPdf
 Local $iItem ; Command identifier of the button associated with the notification.
-Local Enum $idSave, $idLog, $idStart, $idStop
+Local Enum $idSave = 1000, $idLog, $idStart, $idStop
 #EndRegion ### VARIABLES ###
 
 #Region ### START Koda GUI section ### Form=forms\fautoitpdffolderprint.kxf
@@ -98,8 +99,11 @@ $sbMain = _GUICtrlStatusBar_Create($fAutoItPDFFolderPrint)
 _GUICtrlStatusBar_SetSimple($sbMain)
 _GUICtrlStatusBar_SetText($sbMain, "")
 $tbMain = _GUICtrlToolbar_Create($fAutoItPDFFolderPrint, 0)
+$ttMain = _GUIToolTip_Create($tbMain)
+_GUICtrlToolbar_SetToolTips($tbMain, $ttMain)
 _GUICtrlToolbar_SetImageList($tbMain, $ilToolBar)
 _GUICtrlToolbar_AddButton($tbMain, $idSave, 0, 0) ; __SaveIni()
+_GUICtrlToolbar_EnableButton($tbMain, $idSave, False)
 _GUICtrlToolbar_AddButton($tbMain, $idLog, 1, 0) ; GUISetState(@SW_SHOW, $fLogs)
 _GUICtrlToolbar_AddButton($tbMain, $idStart, 2, 0) ; Set $bRunning = true
 _GUICtrlToolbar_AddButton($tbMain, $idStop, 3, 0) ; Set $bRunning = false
@@ -121,8 +125,8 @@ __LoadIni()
 While 1
 	If $bRunning Then
 		$aFiles = FileFindFirstFile(GUICtrlRead($iFolder) & "\*.pdf")
-		_GUICtrlStatusBar_SetText($sbMain, "Running: " & GUICtrlRead($iFolder))
 		If $aFiles <> -1 Then
+			_GUICtrlStatusBar_SetText($sbMain, "Running: " & GUICtrlRead($iFolder))
 			While $bRunning
 				$sPdf = FileFindNextFile($aFiles)
 				If @error Then ExitLoop
@@ -131,6 +135,7 @@ While 1
 				FileDelete(GUICtrlRead($iFolder) & "\" & $sPdf)
 			WEnd
 		EndIf
+		_GUICtrlStatusBar_SetText($sbMain, "Finished: " & GUICtrlRead($iFolder))
 	EndIf
 
 	Sleep(100)
@@ -160,6 +165,7 @@ EndFunc   ;==>__Log
 Func __OnChange()
 	__Log("__OnChange()")
 	$bChange = True
+	_GUICtrlToolbar_EnableButton($tbMain, $idSave, $bChange)
 ;~ 	TODO: Enable $idSave & if $iFolder -> Tree
 EndFunc   ;==>__OnChange
 Func __OnClick()
@@ -215,12 +221,15 @@ Func __SaveIni()
 	IniWrite($sPathIni, "SOFTWARE", "Path", GUICtrlRead($iPath))
 	IniWrite($sPathIni, "SOFTWARE", "Arguments", GUICtrlRead($iArguments))
 	$bChange = False
+	_GUICtrlToolbar_EnableButton($tbMain, $idSave, $bChange)
 EndFunc   ;==>__SaveIni
 
 Func _WM_NOTIFY($hWndGUI, $iMsgID, $wParam, $lParam)
 	#forceref $hWndGUI, $iMsgID, $wParam
 	Local $tNMHDR, $hWndFrom, $iCode, $iNew, $iFlags, $iOld
 	Local $tNMTBHOTITEM
+
+;~ 	Click
 	$tNMHDR = DllStructCreate($tagNMHDR, $lParam)
 	$hWndFrom = DllStructGetData($tNMHDR, "hWndFrom")
 	$iCode = DllStructGetData($tNMHDR, "Code")
@@ -228,11 +237,13 @@ Func _WM_NOTIFY($hWndGUI, $iMsgID, $wParam, $lParam)
 		Case $tbMain
 			Switch $iCode
 				Case $NM_LDOWN
-					__Log("$NM_LDOWN: Clicked Item: " & $iItem & " at index: " & _GUICtrlToolbar_CommandToIndex($tbMain, $iItem))
+;~ 					__Log("$NM_LDOWN: Clicked Item: " & $iItem & " at index: " & _GUICtrlToolbar_CommandToIndex($tbMain, $iItem))
 					Switch $iItem
 						Case $idSave
 							__Log("$NM_LDOWN: $idSave")
-							__SaveIni()
+							If _GUICtrlToolbar_IsButtonEnabled($tbMain, $idSave) Then
+								__SaveIni()
+							EndIf
 						Case $idLog
 							__Log("$NM_LDOWN: $idLog")
 							GUISetState(@SW_SHOW, $fLogs)
@@ -249,23 +260,40 @@ Func _WM_NOTIFY($hWndGUI, $iMsgID, $wParam, $lParam)
 					$iOld = DllStructGetData($tNMTBHOTITEM, "idOld")
 					$iNew = DllStructGetData($tNMTBHOTITEM, "idNew")
 					$iItem = $iNew
-					$iFlags = DllStructGetData($tNMTBHOTITEM, "dwFlags")
-					If BitAND($iFlags, $HICF_LEAVING) = $HICF_LEAVING Then
-						__Log("$HICF_LEAVING: " & $iOld)
-					Else
-						Switch $iNew
-							Case $idSave
-								__Log("$TBN_HOTITEMCHANGE: $idSave")
-							Case $idLog
-								__Log("$TBN_HOTITEMCHANGE: $idLog")
-							Case $idStart
-								__Log("$TBN_HOTITEMCHANGE: $idStart")
-							Case $idStop
-								__Log("$TBN_HOTITEMCHANGE: $idStop")
-						EndSwitch
-					EndIf
+;~ 					$iFlags = DllStructGetData($tNMTBHOTITEM, "dwFlags")
+;~ 					If BitAND($iFlags, $HICF_LEAVING) = $HICF_LEAVING Then
+;~ 						__Log("$HICF_LEAVING: " & $iOld)
+;~ 					Else
+;~ 						Switch $iNew
+;~ 							Case $idSave
+;~ 								__Log("$TBN_HOTITEMCHANGE: $idSave")
+;~ 							Case $idLog
+;~ 								__Log("$TBN_HOTITEMCHANGE: $idLog")
+;~ 							Case $idStart
+;~ 								__Log("$TBN_HOTITEMCHANGE: $idStart")
+;~ 							Case $idStop
+;~ 								__Log("$TBN_HOTITEMCHANGE: $idStop")
+;~ 						EndSwitch
+;~ 					EndIf
 			EndSwitch
 	EndSwitch
+
+;~ 	ToolTip
+	$tInfo = DllStructCreate($tagNMTTDISPINFO, $lParam)
+	$iCode = DllStructGetData($tInfo, "Code")
+	If $iCode = $TTN_GETDISPINFOW Then
+		$iID = DllStructGetData($tInfo, "IDFrom")
+		Switch $iID
+			Case $idSave
+				DllStructSetData($tInfo, "aText", "Save")
+			Case $idLog
+				DllStructSetData($tInfo, "aText", "Log")
+			Case $idStart
+				DllStructSetData($tInfo, "aText", "Start")
+			Case $idStop
+				DllStructSetData($tInfo, "aText", "Stop")
+		EndSwitch
+	EndIf
 	Return $GUI_RUNDEFMSG
 EndFunc   ;==>_WM_NOTIFY
 
@@ -279,6 +307,7 @@ Func cPredefinedChange()
 			GUICtrlSetData($iPath, @ProgramFilesDir & "\Foxit software\Foxit Reader\Foxit Reader.exe")
 			GUICtrlSetData($iArguments, "/p")
 	EndSwitch
+	__OnChange()
 EndFunc   ;==>cPredefinedChange
 Func fAutoItPDFFolderPrintClose()
 	__Log("fAutoItPDFFolderPrintClose()")
