@@ -58,6 +58,7 @@ Local $bRunning = False
 Local $sPathIni = @ScriptDir & "\AutoIt-PDFFolderPrint.ini"
 Local $sPathLog = @ScriptDir & "\AutoIt-PDFFolderPrint.log"
 Local $aFiles, $sPathPdf
+Local $iItem ; Command identifier of the button associated with the notification.
 Local Enum $idSave, $idLog, $idStart, $idStop
 #EndRegion ### VARIABLES ###
 
@@ -106,6 +107,7 @@ $gLog = GUICtrlCreateGroup("Log", 8, 32, 593, 57)
 $cbLog = GUICtrlCreateCheckbox("Save log", 24, 56, 561, 17)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
 GUISetState(@SW_SHOW)
+GUIRegisterMsg($WM_NOTIFY, "_WM_NOTIFY")
 #EndRegion ### END Koda GUI section ###
 
 #Region ### START Koda GUI section ### Form=forms\flogs.kxf
@@ -214,6 +216,58 @@ Func __SaveIni()
 	IniWrite($sPathIni, "SOFTWARE", "Arguments", GUICtrlRead($iArguments))
 	$bChange = False
 EndFunc   ;==>__SaveIni
+
+Func _WM_NOTIFY($hWndGUI, $iMsgID, $wParam, $lParam)
+	#forceref $hWndGUI, $iMsgID, $wParam
+	Local $tNMHDR, $hWndFrom, $iCode, $iNew, $iFlags, $iOld
+	Local $tNMTBHOTITEM
+	$tNMHDR = DllStructCreate($tagNMHDR, $lParam)
+	$hWndFrom = DllStructGetData($tNMHDR, "hWndFrom")
+	$iCode = DllStructGetData($tNMHDR, "Code")
+	Switch $hWndFrom
+		Case $tbMain
+			Switch $iCode
+				Case $NM_LDOWN
+					__Log("$NM_LDOWN: Clicked Item: " & $iItem & " at index: " & _GUICtrlToolbar_CommandToIndex($tbMain, $iItem))
+					Switch $iItem
+						Case $idSave
+							__Log("$NM_LDOWN: $idSave")
+							__SaveIni()
+						Case $idLog
+							__Log("$NM_LDOWN: $idLog")
+							GUISetState(@SW_SHOW, $fLogs)
+						Case $idStart
+							__Log("$NM_LDOWN: $idStart")
+							$bRunning = True
+						Case $idStop
+							__Log("$NM_LDOWN: $idStop")
+							$bRunning = False
+					EndSwitch
+
+				Case $TBN_HOTITEMCHANGE
+					$tNMTBHOTITEM = DllStructCreate($tagNMTBHOTITEM, $lParam)
+					$iOld = DllStructGetData($tNMTBHOTITEM, "idOld")
+					$iNew = DllStructGetData($tNMTBHOTITEM, "idNew")
+					$iItem = $iNew
+					$iFlags = DllStructGetData($tNMTBHOTITEM, "dwFlags")
+					If BitAND($iFlags, $HICF_LEAVING) = $HICF_LEAVING Then
+						__Log("$HICF_LEAVING: " & $iOld)
+					Else
+						Switch $iNew
+							Case $idSave
+								__Log("$TBN_HOTITEMCHANGE: $idSave")
+							Case $idLog
+								__Log("$TBN_HOTITEMCHANGE: $idLog")
+							Case $idStart
+								__Log("$TBN_HOTITEMCHANGE: $idStart")
+							Case $idStop
+								__Log("$TBN_HOTITEMCHANGE: $idStop")
+						EndSwitch
+					EndIf
+			EndSwitch
+	EndSwitch
+	Return $GUI_RUNDEFMSG
+EndFunc   ;==>_WM_NOTIFY
 
 Func cPredefinedChange()
 	__Log("cPredefinedChange() [" & GUICtrlRead($cPredefined) & "]")
