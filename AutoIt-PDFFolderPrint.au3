@@ -307,7 +307,7 @@ Func cPredefinedChange()
 			GUICtrlSetData($iPath, @ProgramFilesDir & "\Foxit software\Foxit Reader\Foxit Reader.exe")
 			GUICtrlSetData($iArguments, "/p")
 		Case "Sumatra PDF"
-			GUICtrlSetData($iPath, _PathFull("Foxit Reader\SumatraPDF.exe", @AppDataDir)
+			GUICtrlSetData($iPath, _PathFull("Local\SumatraPDF\SumatraPDF.exe", @AppDataDir))
 			GUICtrlSetData($iArguments, "-print-to-default -exit-when-done")
 	EndSwitch
 	__OnChange()
