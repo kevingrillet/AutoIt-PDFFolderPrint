@@ -40,6 +40,7 @@
 #include <GuiStatusBar.au3>
 #include <GuiToolbar.au3>
 #include <GuiToolTip.au3>
+#include <GuiTreeView.au3>
 #include <ImageListConstants.au3>
 #include <StaticConstants.au3>
 #include <ToolbarConstants.au3>
@@ -64,7 +65,7 @@ Local Enum $idSave = 1000, $idLog, $idStart, $idStop
 #EndRegion ### VARIABLES ###
 
 #Region ### START Koda GUI section ### Form=forms\fautoitpdffolderprint.kxf
-$fAutoItPDFFolderPrint = GUICreate("AutoIt-PDFFolderPrint", 615, 549, -1, -1, $WS_SYSMENU)
+$fAutoItPDFFolderPrint = GUICreate("AutoIt-PDFFolderPrint", 615, 549, -1, -1, $WS_SYSMENU, $WS_EX_ACCEPTFILES)
 GUISetOnEvent($GUI_EVENT_CLOSE, "fAutoItPDFFolderPrintClose")
 $ilToolBar = _GUIImageList_Create(16, 16, 5)
 _GUIImageList_AddIcon($ilToolBar, "icons\save_close.ico", 0, True)
@@ -131,6 +132,7 @@ While 1
 				$sPdf = FileFindNextFile($aFiles)
 				If @error Then ExitLoop
 				_GUICtrlStatusBar_SetText($sbMain, "Running: " & GUICtrlRead($iFolder) & "\" & $sPdf)
+				__Log("RunWait: " & GUICtrlRead($iPath) & ' ' & GUICtrlRead($iArguments) & ' "' & GUICtrlRead($iFolder) & "\" & $sPdf & '"')
 				RunWait(GUICtrlRead($iPath) & ' ' & GUICtrlRead($iArguments) & ' "' & GUICtrlRead($iFolder) & "\" & $sPdf & '"')
 				FileDelete(GUICtrlRead($iFolder) & "\" & $sPdf)
 			WEnd
@@ -147,6 +149,39 @@ Func __GetExtension($sFilePath)
 	_PathSplit($sFilePath, $sDrive, $sDir, $sFileName, $sExtension)
 	Return $sExtension
 EndFunc   ;==>__GetExtension
+;~ https://www.autoitscript.com/forum/topic/132048-filling-a-treeview-with-folders-and-files/?do=findComment&comment=919808
+Func __ListFiles_ToTreeView($sSourceFolder, $hItem)
+
+	Local $sFile
+
+	; Force a trailing \
+	If StringRight($sSourceFolder, 1) <> "\" Then $sSourceFolder &= "\"
+
+	; Start the search
+	Local $hSearch = FileFindFirstFile($sSourceFolder & "*.*")
+	; If no files found then return
+	If $hSearch = -1 Then Return ; This is where we break the recursive loop <<<<<<<<<<<<<<<<<<<<<<<<<<
+
+	; Now run through the contents of the folder
+	While 1
+		; Get next match
+		$sFile = FileFindNextFile($hSearch)
+		; If no more files then close search handle and return
+		If @error Then ExitLoop ; This is where we break the recursive loop <<<<<<<<<<<<<<<<<<<<<<<<<<
+
+		; Check if a folder
+		If @extended Then
+			; If so then call the function recursively
+			__ListFiles_ToTreeView($sSourceFolder & $sFile, _GUICtrlTreeView_AddChild($tvFolder, $hItem, $sFile))
+		Else
+			; If a file than write path and name
+			_GUICtrlTreeView_AddChild($tvFolder, $hItem, $sFile)
+		EndIf
+	WEnd
+
+	; Close search handle
+	FileClose($hSearch)
+EndFunc   ;==>__ListFiles_ToTreeView
 Func __LoadIni()
 	__Log("__LoadIni()")
 	GUICtrlSetState($cbLog, IniRead($sPathIni, "SETTINGS", "DIRECTORY", $GUI_UNCHECKED))
@@ -154,6 +189,7 @@ Func __LoadIni()
 	GUICtrlSetData($cPredefined, IniRead($sPathIni, "SOFTWARE", "Predefined", "Custom"))
 	GUICtrlSetData($iPath, IniRead($sPathIni, "SOFTWARE", "Path", ""))
 	GUICtrlSetData($iArguments, IniRead($sPathIni, "SOFTWARE", "Arguments", ""))
+	__RefreshTV()
 EndFunc   ;==>__LoadIni
 Func __Log($sToLog)
 	ConsoleWrite(_NowCalc() & " : " & $sToLog & @CRLF)
@@ -165,8 +201,7 @@ EndFunc   ;==>__Log
 Func __OnChange()
 	__Log("__OnChange()")
 	$bChange = True
-	_GUICtrlToolbar_EnableButton($tbMain, $idSave, $bChange)
-;~ 	TODO: Enable $idSave & if $iFolder -> Tree
+	__RefreshTV()
 EndFunc   ;==>__OnChange
 Func __OnClick()
 ;~ 	__Log("__OnClick(" & @GUI_CtrlId & ")")
@@ -188,6 +223,7 @@ Func __OnClick()
 			Else
 				FileChangeDir(@ScriptDir)
 				GUICtrlSetData($iFolder, $sFileSelectFolder)
+				__RefreshTV()
 			EndIf
 	EndSwitch
 EndFunc   ;==>__OnClick
@@ -213,6 +249,16 @@ Func __OnDrop()
 		EndIf
 	EndIf
 EndFunc   ;==>__OnDrop
+Func __RefreshTV()
+	__Log("__RefreshTV()")
+	_GUICtrlToolbar_EnableButton($tbMain, $idSave, $bChange)
+	_GUICtrlTreeView_BeginUpdate($tvFolder)
+	_GUICtrlTreeView_DeleteAll($tvFolder)
+	If FileExists(GUICtrlRead($iFolder)) = 1 Then
+		__ListFiles_ToTreeView(GUICtrlRead($iFolder), 0)
+	EndIf
+	_GUICtrlTreeView_EndUpdate($tvFolder)
+EndFunc   ;==>__RefreshTV
 Func __SaveIni()
 	__Log("__SaveIni()")
 	IniWrite($sPathIni, "SETTINGS", "Log", GUICtrlRead($cbLog))
@@ -307,7 +353,7 @@ Func cPredefinedChange()
 			GUICtrlSetData($iPath, @ProgramFilesDir & "\Foxit software\Foxit Reader\Foxit Reader.exe")
 			GUICtrlSetData($iArguments, "/p")
 		Case "Sumatra PDF"
-			GUICtrlSetData($iPath, _PathFull("Local\SumatraPDF\SumatraPDF.exe", @AppDataDir))
+			GUICtrlSetData($iPath, _PathFull("Local\SumatraPDF\SumatraPDF.exe", StringRegExpReplace(@AppDataDir, '\\[^\\]*$', '')))
 			GUICtrlSetData($iArguments, "-print-to-default -exit-when-done")
 	EndSwitch
 	__OnChange()
