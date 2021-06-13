@@ -8,7 +8,3 @@ Automatically print pdf in folder
 
 - [Foxit Reader](https://www.foxit.com/)
 - [Sumatra PDF](https://www.sumatrapdfreader.org/)
-
-## ToDo
-
-- Tree view of the folder to print
