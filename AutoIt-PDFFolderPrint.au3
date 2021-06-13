@@ -108,6 +108,7 @@ _GUICtrlToolbar_EnableButton($tbMain, $idSave, False)
 _GUICtrlToolbar_AddButton($tbMain, $idLog, 1, 0) ; GUISetState(@SW_SHOW, $fLogs)
 _GUICtrlToolbar_AddButton($tbMain, $idStart, 2, 0) ; Set $bRunning = true
 _GUICtrlToolbar_AddButton($tbMain, $idStop, 3, 0) ; Set $bRunning = false
+_GUICtrlToolbar_EnableButton($tbMain, $idStop, False)
 $gLog = GUICtrlCreateGroup("Log", 8, 32, 593, 57)
 $cbLog = GUICtrlCreateCheckbox("Save log", 24, 56, 561, 17)
 GUICtrlCreateGroup("", -99, -99, 1, 1)
@@ -137,7 +138,12 @@ While 1
 				FileDelete(GUICtrlRead($iFolder) & "\" & $sPdf)
 			WEnd
 		EndIf
+
 		_GUICtrlStatusBar_SetText($sbMain, "Finished: " & GUICtrlRead($iFolder))
+		$bRunning = False
+		_GUICtrlToolbar_EnableButton($tbMain, $idStop, False)
+		_GUICtrlToolbar_EnableButton($tbMain, $idStart, True)
+		__RefreshTV()
 	EndIf
 
 	Sleep(100)
@@ -296,9 +302,13 @@ Func _WM_NOTIFY($hWndGUI, $iMsgID, $wParam, $lParam)
 						Case $idStart
 							__Log("$NM_LDOWN: $idStart")
 							$bRunning = True
+							_GUICtrlToolbar_EnableButton($tbMain, $idStop, True)
+							_GUICtrlToolbar_EnableButton($tbMain, $idStart, False)
 						Case $idStop
 							__Log("$NM_LDOWN: $idStop")
 							$bRunning = False
+							_GUICtrlToolbar_EnableButton($tbMain, $idStop, False)
+							_GUICtrlToolbar_EnableButton($tbMain, $idStart, True)
 					EndSwitch
 
 				Case $TBN_HOTITEMCHANGE
