@@ -75,7 +75,7 @@ _GUIImageList_AddIcon($ilToolBar, "icons\stop.ico", 0, True)
 $gSoftware = GUICtrlCreateGroup("Software", 8, 96, 593, 129)
 GUICtrlCreateLabel("Predefined", 32, 123, 55, 17)
 $cPredefined = GUICtrlCreateCombo("", 120, 120, 377, 25, BitOR($CBS_DROPDOWN, $CBS_AUTOHSCROLL))
-GUICtrlSetData(-1, "Custom|Foxit Reader|Sumatra PDF")
+GUICtrlSetData(-1, "Custom|Acrobat Reader DC|Foxit Reader|Sumatra PDF")
 GUICtrlSetOnEvent(-1, "cPredefinedChange")
 GUICtrlCreateLabel("Path", 32, 155, 26, 17)
 $iPath = GUICtrlCreateInput("", 120, 152, 377, 21)
@@ -109,8 +109,11 @@ _GUICtrlToolbar_AddButton($tbMain, $idLog, 1, 0) ; GUISetState(@SW_SHOW, $fLogs)
 _GUICtrlToolbar_AddButton($tbMain, $idStart, 2, 0) ; Set $bRunning = true
 _GUICtrlToolbar_AddButton($tbMain, $idStop, 3, 0) ; Set $bRunning = false
 _GUICtrlToolbar_EnableButton($tbMain, $idStop, False)
-$gLog = GUICtrlCreateGroup("Log", 8, 32, 593, 57)
-$cbLog = GUICtrlCreateCheckbox("Save log", 24, 56, 561, 17)
+$gSettings = GUICtrlCreateGroup("Settings", 8, 32, 593, 57)
+$cbLog = GUICtrlCreateCheckbox("Save log", 24, 56, 250, 17)
+GUICtrlSetOnEvent(-1, "__OnChange")
+$cbPerpetual = GUICtrlCreateCheckbox("Perpetual run", 300, 56, 250, 17)
+GUICtrlSetOnEvent(-1, "__OnChange")
 GUICtrlCreateGroup("", -99, -99, 1, 1)
 GUISetState(@SW_SHOW)
 GUIRegisterMsg($WM_NOTIFY, "_WM_NOTIFY")
@@ -138,15 +141,16 @@ While 1
 				FileDelete(GUICtrlRead($iFolder) & "\" & $sPdf)
 			WEnd
 		EndIf
-
-		_GUICtrlStatusBar_SetText($sbMain, "Finished: " & GUICtrlRead($iFolder))
-		$bRunning = False
-		_GUICtrlToolbar_EnableButton($tbMain, $idStop, False)
-		_GUICtrlToolbar_EnableButton($tbMain, $idStart, True)
-		__RefreshTV()
+		If GUICtrlRead($cbLog) = $GUI_CHECKED Then
+			_GUICtrlStatusBar_SetText($sbMain, "Perpetual run: " & GUICtrlRead($iFolder))
+		Else
+			_GUICtrlStatusBar_SetText($sbMain, "Finished: " & GUICtrlRead($iFolder))
+			_GUICtrlToolbar_ClickButton($tbMain, $idStop)
+		EndIf
 	EndIf
 
-	Sleep(100)
+	__RefreshTV()
+	Sleep(60 * 1000) ; 60s
 WEnd
 
 Func __GetExtension($sFilePath)
@@ -190,7 +194,8 @@ Func __ListFiles_ToTreeView($sSourceFolder, $hItem)
 EndFunc   ;==>__ListFiles_ToTreeView
 Func __LoadIni()
 	__Log("__LoadIni()")
-	GUICtrlSetState($cbLog, IniRead($sPathIni, "SETTINGS", "DIRECTORY", $GUI_UNCHECKED))
+	GUICtrlSetState($cbLog, IniRead($sPathIni, "SETTINGS", "Log", $GUI_UNCHECKED))
+	GUICtrlSetState($cbPerpetual, IniRead($sPathIni, "SETTINGS", "Perpetual", $GUI_UNCHECKED))
 	GUICtrlSetData($iFolder, IniRead($sPathIni, "PDF_FOLDER", "Directory", @ScriptDir))
 	GUICtrlSetData($cPredefined, IniRead($sPathIni, "SOFTWARE", "Predefined", "Custom"))
 	GUICtrlSetData($iPath, IniRead($sPathIni, "SOFTWARE", "Path", ""))
@@ -268,6 +273,7 @@ EndFunc   ;==>__RefreshTV
 Func __SaveIni()
 	__Log("__SaveIni()")
 	IniWrite($sPathIni, "SETTINGS", "Log", GUICtrlRead($cbLog))
+	IniWrite($sPathIni, "SETTINGS", "Perpetual", GUICtrlRead($cbPerpetual))
 	IniWrite($sPathIni, "PDF_FOLDER", "Directory", GUICtrlRead($iFolder))
 	IniWrite($sPathIni, "SOFTWARE", "Predefined", GUICtrlRead($cPredefined))
 	IniWrite($sPathIni, "SOFTWARE", "Path", GUICtrlRead($iPath))
@@ -359,8 +365,11 @@ Func cPredefinedChange()
 		Case "Custom"
 			GUICtrlSetData($iPath, "")
 			GUICtrlSetData($iArguments, "")
+		Case "Acrobat Reader DC"
+			GUICtrlSetData($iPath, "C:\Program Files (x86)\Adobe\Acrobat Reader DC\Reader\AcroRd32.exe")
+			GUICtrlSetData($iArguments, "/p")
 		Case "Foxit Reader"
-			GUICtrlSetData($iPath, @ProgramFilesDir & "\Foxit software\Foxit Reader\Foxit Reader.exe")
+			GUICtrlSetData($iPath, @ProgramFilesDir & "\Foxit software\Foxit Reader\FoxitReader.exe")
 			GUICtrlSetData($iArguments, "/p")
 		Case "Sumatra PDF"
 			GUICtrlSetData($iPath, _PathFull("Local\SumatraPDF\SumatraPDF.exe", StringRegExpReplace(@AppDataDir, '\\[^\\]*$', '')))
